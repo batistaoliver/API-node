@@ -1,0 +1,188 @@
+*OBS: para rodar, exexute "npm run dev"
+cria a pasta;
+npm init -y (cria o package.json);
+npm install express (micro framework, ajuda a le dar com rotas e views)
+abre o visual studio code;
+crio o projeto principal na pasta rais : server.js;
+	const express = require('express');
+	const app = express();
+	app.listen(3001);
+já pode roda localhost:3001
+
+*primeira rota:
+app.get('/',(req,res)=>{
+    res.send("Hello Rocketseat");
+})
+
+*utilizando nodemon:
+	npm install -D nodemon;
+	abre package.json -> scripts -> cria : "dev": "nodemon server.js"
+	agora roda o cógido usando "npm run dev"
+
+*instalando mongoDB
+	
+*conectando datase:
+	em um pront de comando usa: mongod;(abre o cmd como adm)
+	no outro mongo;(pronto, vai conectar)
+	em server.js : const mongoose = require('mongoose'); mongoose.connect('mongodb://localhost:27017/nodeapi',{ useNewUrlParser: true, useUnifiedTopology: true });
+
+*criando o model:
+	cria a pasta src(na pasta raiz)
+		pasta models
+			Product.js
+				const mongoose = require('mongoose');
+
+				const ProducSchema = new mongoose.Schema({
+    				title: {
+        				type: String,
+        				require: true,
+    				},
+    				description: {
+        				type: String,
+        				required:true,
+    				},
+    				url:{
+        				type: String,
+        				required: true,
+    				},
+    				createdAt: {
+        				type: Date,
+        				default: Date.now,
+    				},
+				})
+
+				mongoose.model('product',ProducSchema);
+
+	instala requiredir: npm install require-dir;
+
+	em server.js 
+		coloca: const requireDir = require(''require-dir);
+		requireDir('./src/modeles');
+		const Product = mongoose.model('Product')(a baixo do requireDir)
+		dentro da primeira rota: 
+			Product.create({
+        			title: "React Native",
+        			description: "Build native apps with React",
+        			url: "https://github.com/facebook/react-native"
+    			});
+	no terminal que vc digitou o mongo:
+		digita show database
+
+
+*Restruturando arquivo:
+ dentro da pasta src:
+	routes.js
+		importa o express;(const express = require('express') ;)
+		const routes = express.Router();
+		copia a primeira rota, para dentro deste arquivo mudando app.get para routes.get
+		na última linha: module.exports = routes;
+		em server: 
+			app.use('/api', require('./src/routes'));
+			retirao cont product
+	
+	na pasta raiz, cria a pasta controllers
+		ProductController.js
+			const mongoose = require('mongoose')
+
+			const product = mongoose.model('Product')
+
+			module.exports = {
+    				async index(req, res){
+        			const products = await Product.find();
+
+        			return res.json(products);
+    				}
+			};
+	routes.js
+		apaga a rota e escreve:
+		const ProductController = require('./controllers/ProductControllers')
+		routes.get("/products", ProductController.index);
+
+*insominia
+	procura por insomia.rest;
+	clica no "+" (new request) seleciona tipo get com nome index;
+	lá em cima digita a url: http://localhost:3001/api/products e clicar em "send" (nesse caso ele já retorna o json);
+	clica em "No Environment" -> "manage Environments" e coloca o url base da aplicação: "base_url": "http://localhost:3001/api" -> done
+	agora na url, só digitar: base_url/products
+
+*Criação de registros:
+	1)ProductControllers.js:
+		,
+    		async store(req, res){
+
+    		}
+	routes.js:
+		routes.post("/products", ProductController.store)
+	Insominia:
+		duplica a rota, com o nome "Create", com o tipo post, e em "body" seleciona "json" e digita:
+			{
+				"title": "ReactJS",
+				"description": "Biblioteca para criar aplicações interativas com javascript",
+				"url": "http://github.com/facebook.react"
+			}
+	2)server.js:
+		app.use(express.json());
+
+	3) em ProductControllers.js, dentro do método store:
+		const product = await Product.create(req.body);
+
+        	return res.json(product);
+
+	4)insôminia e clica em "send" (já criou um novo registro)
+
+*crud
+	1)falta criar o metodo de detalhe, atualização e delete;
+	2)ProductControllers.js:
+		async show(req, res){
+        		const product = await Product.findById(req.params.id);
+
+        		return res.json(product);
+    		},
+	3)routes.js:
+		routes.get("/products/:id",ProductController.show);
+	4) insôminia: 
+		duplica o index e renomeia como show;
+		pega o id de um produto que já existe e coloca no insôminia, na url
+	5)ProductControllers.js:
+		,async update(req, res){
+        		const product = await Product.findByIdAndUpdate(req.params.id,req.body,{new: true})
+        		return res.json(product);
+    		},
+	6)route.js:
+		routes.put("/products/:id", ProductController.update);
+	7)insôminia:
+		duplica a rota create, muda o tipo para PUT, renomeia para update,deixa o titulo apenas e muda de Reactjs para React.
+	8)ProductControllers.js:
+		async destroy(req,res){
+        		await Product.findByIdAndRemove(req.params.id)
+        
+        		return res.send();
+    		}
+	9)routes.js:
+		routes.delete("/products/:id", ProductController.destroy);
+	10)insominia:
+		duplica a rota update, com o nome Delete, seleciona NO BODY e no lugar de GET, coloca DELETE
+*paginação da lista:
+	1)instala : mongoose-paginate (npm install mongoose-paginate)
+	2)model - > Product :
+		const mongoosePaginate = require('mongoose-paginate');
+		ProducSchema.plugin(mongoosePaginate);(antes de mongoose.model)
+	3)controllers -> ProductController.js
+		No index:
+			const {page =1} = req.query; //isso serve para se na minha url eu quiser acessar a página 2, 3 ect, basta eu colocar:?page=2, mas se não tiver nada, o padrão é 1.
+		 	substitui o "find()" por paginate({},{page, limit:10}) //página atual = 1 e limite por página, o primeiro {} seria para realisar algum filtro, com where, por exemplo.
+		
+		
+
+*Permitir que outros usuarios acessem a minha API:
+	1)instala o Cors: npm install cors;
+	2) em server.js:
+		const cors = require('cors');
+		app.use(cors());
+	
+
+
+
+
+
+
